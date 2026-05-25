@@ -9,10 +9,10 @@ preview_urls = false
 directory = ".open-next/assets"
 binding = "ASSETS"
 
+# Only the canonical apex is served by the Worker. The other 3 hosts
+# (www.lazycodex.ai, lazycodex.dev, www.lazycodex.dev) 301-redirect to this
+# apex via Cloudflare DNS-edge Single Redirect rulesets configured in each
+# zone. Those requests never reach the Worker.
 [[routes]]
 pattern = "lazycodex.ai"
-custom_domain = true
-
-[[routes]]
-pattern = "www.lazycodex.ai"
 custom_domain = true
