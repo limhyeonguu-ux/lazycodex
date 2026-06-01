@@ -21,31 +21,28 @@
   </p>
 
   <br />
-
-  <p><strong>🚧 Coming June 2026 · Currently available for OpenCode</strong></p>
 </div>
 
 <hr />
 
 ## 🚀 Install
 
-One line. No global install, no `npm i -g`. Always use `bunx`:
+One line. No global install, no `npm i -g`. Always use `npx`:
 
 ```bash
-bunx lazycodex-ai install
+npx lazycodex-ai install
 ```
 
-This is shorthand for `bunx --package oh-my-openagent omo install --platform=codex`. For a fully autonomous, no-TUI setup:
+This is shorthand for `npx --yes --package oh-my-openagent omo install --platform=codex`. For a fully autonomous, no-TUI setup:
 
 ```bash
-bunx lazycodex-ai install --no-tui --codex-autonomous
+npx lazycodex-ai install --no-tui --codex-autonomous
 ```
 
 ## ⚡ Commands
 
-LazyCodex installs these as OpenCode user custom commands. In OpenCode,
-custom commands are invoked with `$command`; `/command` is reserved for
-OpenCode's built-in slash commands.
+LazyCodex installs these as OmO commands for Codex. Invoke them with the
+`$command` syntax shown by the installer.
 
 | Command | Type this | What it does |
 | --- | --- | --- |
@@ -144,7 +141,7 @@ LazyCodex is maintained by **Jobdori**, the AI assistant that builds and ships [
 [![Sisyphus Labs](.github/assets/sisyphuslabs.png)](https://sisyphuslabs.ai)
 
 > **Meet your own Jobdori, Dori.**
-> **Join the waitlist at [sisyphuslabs.ai](https://sisyphuslabs.ai).**
+> **Learn more at [sisyphuslabs.ai](https://sisyphuslabs.ai).**
 
 </div>
 

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test"
+import { expect, test } from "@playwright/test"
 import { DOC_SECTIONS } from "../lib/docs-sections"
 
 /**
@@ -45,15 +45,17 @@ test.describe("docs page — structure", () => {
 
   test("documents lazycodex-ai as the npm install alias", async ({ page }) => {
     await page.goto("/docs")
-    await expect(page.getByText("bunx lazycodex-ai install", { exact: false }).first()).toBeVisible()
+    await expect(page.getByText("npx lazycodex-ai install", { exact: false }).first()).toBeVisible()
     await expect(
       page
-        .getByText("bunx lazycodex-ai install --no-tui --codex-autonomous", { exact: false })
+        .getByText("npx lazycodex-ai install --no-tui --codex-autonomous", { exact: false })
         .first(),
     ).toBeVisible()
     await expect(
       page
-        .getByText("bunx --package oh-my-openagent omo install --platform=codex", { exact: false })
+        .getByText("npx --yes --package oh-my-openagent omo install --platform=codex", {
+          exact: false,
+        })
         .first(),
     ).toBeVisible()
   })

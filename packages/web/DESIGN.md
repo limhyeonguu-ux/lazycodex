@@ -26,7 +26,7 @@
 ## 4. Layout & Spacing
 - **Canvas**: Full viewport (`min-h-[100dvh]`), flex column, centered.
 - **Card**: Max width 1200px, aspect ratio 1200/630 on large screens. Rounded corners (`16px`).
-- **Outer Elements**: "OmO in Codex" (top-left) and "Coming June 2026" (bottom-right) are positioned absolutely on the canvas, outside the card, to preserve the card's exact visual match with the reference.
+- **Outer Elements**: The canvas may carry small co-brand labels outside the card when needed, but the current public landing page leads with installable Codex setup instead of launch timing.
 
 ## 5. Gradients & Effects
 - **Base Gradient**: Radial gradient from `#5a5fef` to `#232897`.
@@ -70,9 +70,9 @@ The landing page is a single scrollable document with the following sections, to
    - The `{your prompt}` placeholder uses Geist Mono and pulses subtly
 
 3. **Install block**
-   - Copyable bash snippet: `bunx lazycodex-ai install`
-   - One-line note: "No global install. Always `bunx`."
-   - Secondary line for the autonomous variant: `bunx lazycodex-ai install --no-tui --codex-autonomous`
+   - Copyable bash snippet: `npx lazycodex-ai install`
+   - One-line note: "No global install. Always `npx`."
+   - Secondary line for the autonomous variant: `npx lazycodex-ai install --no-tui --codex-autonomous`
 
 4. **Three command cards**
    - `$ulw-loop` — self-referential loop
