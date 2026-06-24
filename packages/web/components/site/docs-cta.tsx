@@ -1,5 +1,5 @@
 import type { JSX } from "react"
-import Link from "next/link"
+import { GlowActionFrame, LinkAction } from "../design-system/actions"
 import { SITE_CONFIG } from "../../lib/site-config"
 
 export function DocsCta(): JSX.Element {
@@ -14,23 +14,14 @@ export function DocsCta(): JSX.Element {
         Install the Codex setup, then run the workflows that keep large changes under control.
       </p>
       <div className="relative z-10 mt-8 flex flex-wrap justify-center gap-4">
-        <div className="relative group">
-          <div className="absolute -inset-1 rounded-lg bg-[color:var(--accent-mint)] opacity-20 blur-xl transition-opacity group-hover:opacity-30" />
-          <Link
-            href={SITE_CONFIG.docsPath}
-            prefetch={false}
-            className="relative block rounded-md bg-[color:var(--text-primary)] px-6 py-3 font-medium text-[color:var(--surface-base)] transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--surface-panel)]"
-          >
+        <GlowActionFrame>
+          <LinkAction href={SITE_CONFIG.docsPath} variant="primary">
             Read the Docs
-          </Link>
-        </div>
-        <Link
-          href={`${SITE_CONFIG.docsPath}#ulw-loop`}
-          prefetch={false}
-          className="rounded-md border border-white/20 bg-transparent px-6 py-3 font-medium text-[color:var(--text-primary)] transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--surface-panel)]"
-        >
+          </LinkAction>
+        </GlowActionFrame>
+        <LinkAction href={`${SITE_CONFIG.docsPath}#ulw-loop`}>
           How Ultrawork works
-        </Link>
+        </LinkAction>
       </div>
     </section>
   )
