@@ -3927,7 +3927,7 @@ function createRulesEngine(options, config = configFromEnvironment(options.env))
 }
 
 // components/rules/src/static-injection.ts
-import { existsSync as existsSync5 } from "node:fs";
+import { existsSync as existsSync4 } from "node:fs";
 
 // components/rules/src/post-compact-directive.ts
 var DIRECTIVE_HEADER = [
@@ -3963,96 +3963,6 @@ function buildPostCompactReadDirective(rulePaths, maxChars) {
   }
   return `${DIRECTIVE_HEADER}${lines.join(`
 `)}${DIRECTIVE_FOOTER}`;
-}
-
-// components/rules/src/sparkshell-awareness.ts
-import { existsSync as existsSync4 } from "node:fs";
-import { join as join7 } from "node:path";
-var SPARKSHELL_AWARENESS_MARKER = "## Sparkshell Runtime";
-var SPARKSHELL_AWARENESS_DEDUP_KEY = "__omo_sparkshell_awareness__";
-function isCodexAppServerActive(env = process.env) {
-  const originator = env["CODEX_INTERNAL_ORIGINATOR_OVERRIDE"]?.toLowerCase() ?? "";
-  const bundleIdentifier = env["__CFBundleIdentifier"]?.toLowerCase() ?? "";
-  const shellActive = isTruthy2(env["CODEX_SHELL"]);
-  return shellActive && (originator.includes("codex desktop") || originator.includes("codex app") || bundleIdentifier === "com.openai.codex");
-}
-function isSparkShellAppServerConfigured(env = process.env) {
-  const codexSocketPath = env["CODEX_APP_SERVER_SOCKET"]?.trim() ?? "";
-  const omoSocketPath = env["OMO_SPARKSHELL_APP_SERVER_SOCKET"]?.trim() ?? "";
-  return codexSocketPath.length > 0 || omoSocketPath.length > 0;
-}
-function resolveOmoInvocation(env = process.env, deps = {}) {
-  const fileExists = deps.fileExists ?? existsSync4;
-  const platform = deps.platform ?? process.platform;
-  const binNames = platform === "win32" ? ["omo.cmd", "omo.exe", "omo"] : ["omo"];
-  const pathDelimiter = platform === "win32" ? ";" : ":";
-  const pathEntries = (env["PATH"] ?? "").split(pathDelimiter).filter((entry) => entry.trim().length > 0);
-  for (const pathEntry of pathEntries) {
-    for (const binName of binNames) {
-      if (fileExists(join7(pathEntry, binName)))
-        return "omo";
-    }
-  }
-  for (const candidateDir of omoCandidateBinDirs(env)) {
-    for (const binName of binNames) {
-      const candidate = join7(candidateDir, binName);
-      if (fileExists(candidate))
-        return candidate;
-    }
-  }
-  return null;
-}
-function omoCandidateBinDirs(env) {
-  const dirs = [];
-  const localBinDir = env["CODEX_LOCAL_BIN_DIR"]?.trim() ?? "";
-  if (localBinDir.length > 0)
-    dirs.push(localBinDir);
-  const home = env["HOME"]?.trim() || env["USERPROFILE"]?.trim() || "";
-  const codexHome = env["CODEX_HOME"]?.trim() || (home.length > 0 ? join7(home, ".codex") : "");
-  if (codexHome.length > 0)
-    dirs.push(join7(codexHome, "bin"));
-  if (home.length > 0)
-    dirs.push(join7(home, ".local", "bin"));
-  return dirs;
-}
-function getSparkShellRuntimeAwareness(env = process.env, deps = {}) {
-  const override = env["OMO_SPARKSHELL_AWARENESS"] ?? env["LAZYCODEX_SPARKSHELL_AWARENESS"];
-  if (isFalsy(override)) {
-    return "";
-  }
-  if (!isTruthy2(override) && !isCodexAppServerActive(env) && !isSparkShellAppServerConfigured(env)) {
-    return "";
-  }
-  const resolved = resolveOmoInvocation(env, deps);
-  const invocation = resolved ?? (isTruthy2(override) ? "omo" : null);
-  if (invocation === null) {
-    return "";
-  }
-  const command = /\s/.test(invocation) ? `"${invocation}"` : invocation;
-  return [
-    SPARKSHELL_AWARENESS_MARKER,
-    "",
-    `- Use \`${command} sparkshell <command> [args...]\` first for repo inspection, CLI smoke tests, git/history checks, and bounded command output. Pass ordinary commands as executable and arguments in separate argv tokens, for example \`${command} sparkshell rg --files\`; not \`${command} sparkshell 'rg --files'\`, because the quoted string is treated as one executable name. Raw \`rg\`/\`grep\`/\`cat\`/\`git\` are fallbacks when Sparkshell is unavailable or too narrow for the task.`,
-    `- Use \`${command} sparkshell --shell '<command>'\` only for shell syntax such as metacharacters, pipelines, redirects, command substitution, or variable expansion.`,
-    `- Use \`${command} sparkshell --tmux-pane <pane-id> --tail-lines 400\` only to inspect an existing pane, never to launch ordinary commands. Tail lines must stay between 100 and 1000.`,
-    "- When no native sidecar or appserver is available, Sparkshell silently falls back to raw command execution. `OMO_SPARKSHELL_BIN` selects a native sidecar path.",
-    "- When `CODEX_THREAD_ID` identifies a Codex session, Sparkshell feeds recent session context (first/latest user request + last 5 conversation messages) into oversized-output condensation for relevance ranking, but never appends that context to command output. `OMO_SPARKSHELL_SESSION_CONTEXT=0` disables the lookup.",
-    `- Route potentially huge output (full log files, big diffs, \`cat\`/\`grep\` over large artifacts) through \`${command} sparkshell\` instead of reading it raw: oversized output is condensed to a budget while preserving error signatures, repeated patterns, session-goal-relevant lines, and head/tail. Tune with \`--budget <chars>\`; disable with \`OMO_SPARKSHELL_CONDENSE=0\`.`,
-    "- Oversized output is first summarized by the spark model (`codex exec`, default `gpt-5.3-codex-spark`) fed with the shell output plus session context: the summary keeps selected output as-is (no masking) and ends with a `[sparkshell caption]` line describing what ran, what the full output contained, and which lines were omitted. `OMO_SPARKSHELL_SPARK=0` skips the model and uses deterministic condensation directly."
-  ].join(`
-`);
-}
-function isTruthy2(value) {
-  if (value === undefined) {
-    return false;
-  }
-  return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
-}
-function isFalsy(value) {
-  if (value === undefined) {
-    return false;
-  }
-  return ["0", "false", "no", "off"].includes(value.trim().toLowerCase());
 }
 
 // components/rules/src/transcript-rule-filter.ts
@@ -4131,8 +4041,7 @@ function runStaticInjection(cwd, transcriptPath, eventName, cachePath, options, 
   const rules = filterRulesAlreadyInTranscript(loaded.rules.filter((rule) => !engine.isStaticInjected(rule)), transcriptPath, (rule) => {
     engine.markStaticInjected(rule);
   }, transcriptSearchOptions);
-  const sparkshellAwareness = engine.state.staticDedup.has(SPARKSHELL_AWARENESS_DEDUP_KEY) ? "" : getSparkShellRuntimeAwareness(options.env);
-  if (rules.length === 0 && sparkshellAwareness.length === 0) {
+  if (rules.length === 0) {
     persistEngineState(engine, cachePath);
     return "";
   }
@@ -4140,11 +4049,8 @@ function runStaticInjection(cwd, transcriptPath, eventName, cachePath, options, 
   for (const rule of rules) {
     engine.markStaticInjected(rule);
   }
-  if (sparkshellAwareness.length > 0) {
-    engine.state.staticDedup.add(SPARKSHELL_AWARENESS_DEDUP_KEY);
-  }
   persistEngineState(engine, cachePath);
-  return formatAdditionalContextOutput(eventName, combineStaticContext(block, sparkshellAwareness));
+  return formatAdditionalContextOutput(eventName, block);
 }
 function runPostCompactRecovery(input) {
   const effectiveConfig = withPostCompactBudget(input.config, {
@@ -4160,8 +4066,7 @@ function runPostCompactRecovery(input) {
     engine.markStaticInjected(rule);
   });
   const dynamicRulePaths = recoverDynamicRulePaths(engine, transcriptText, loaded.rules);
-  const sparkshellAwareness = engine.state.staticDedup.has(SPARKSHELL_AWARENESS_DEDUP_KEY) ? "" : getSparkShellRuntimeAwareness(input.options.env);
-  if (missingRules.length === 0 && dynamicRulePaths.length === 0 && sparkshellAwareness.length === 0) {
+  if (missingRules.length === 0 && dynamicRulePaths.length === 0) {
     persistEngineState(engine, input.cachePath, input.channel);
     return "";
   }
@@ -4172,11 +4077,8 @@ function runPostCompactRecovery(input) {
   for (const rule of missingRules) {
     engine.markStaticInjected(rule);
   }
-  if (sparkshellAwareness.length > 0) {
-    engine.state.staticDedup.add(SPARKSHELL_AWARENESS_DEDUP_KEY);
-  }
   persistEngineState(engine, input.cachePath, input.channel);
-  return formatAdditionalContextOutput(input.eventName, combineStaticContext(bodyBlock, directive, sparkshellAwareness));
+  return formatAdditionalContextOutput(input.eventName, combineStaticContext(bodyBlock, directive));
 }
 function readRecoveryTranscriptText(transcriptPath) {
   if (transcriptPath === null) {
@@ -4200,7 +4102,7 @@ function recoverDynamicRulePaths(engine, transcriptText, staticRules) {
       if (transcriptText !== null && transcriptText.includes(rulePath)) {
         continue;
       }
-      if (!existsSync5(rulePath)) {
+      if (!existsSync4(rulePath)) {
         continue;
       }
       recoveredPaths.add(rulePath);
@@ -4218,7 +4120,7 @@ function combineStaticContext(...blocks) {
 }
 
 // components/rules/src/tool-paths.ts
-import { existsSync as existsSync6, statSync as statSync6 } from "node:fs";
+import { existsSync as existsSync5, statSync as statSync6 } from "node:fs";
 import { isAbsolute as isAbsolute4, resolve as resolve10 } from "node:path";
 var COMMAND_TOOL_NAMES = new Set(["bash", "shell_command", "exec_command"]);
 var TRACKED_TOOL_NAMES = new Set([
@@ -4329,7 +4231,7 @@ function resolvePath(cwd, filePath) {
 }
 function isExistingFile(filePath) {
   try {
-    return existsSync6(filePath) && statSync6(filePath).isFile();
+    return existsSync5(filePath) && statSync6(filePath).isFile();
   } catch {
     return false;
   }

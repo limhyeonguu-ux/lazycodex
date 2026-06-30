@@ -9,3 +9,4 @@ export interface DaemonPaths {
 export declare function resolveDaemonVersion(requireFn?: (id: string) => unknown): string;
 export declare function daemonBaseDir(env?: NodeJS.ProcessEnv): string;
 export declare function daemonPaths(env?: NodeJS.ProcessEnv, version?: string): DaemonPaths;
+export declare function resolveDaemonVersionFromEnv(env?: NodeJS.ProcessEnv): string | null;

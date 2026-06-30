@@ -4,6 +4,7 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 const requireFromHere = createRequire(import.meta.url);
 const MAX_SOCKET_PATH_LENGTH = 100;
+const CODEX_LSP_DAEMON_VERSION_ENV = "CODEX_LSP_DAEMON_VERSION";
 export function resolveDaemonVersion(requireFn = requireFromHere) {
     for (const candidate of ["./package.json", "../package.json"]) {
         try {
@@ -26,7 +27,7 @@ export function daemonBaseDir(env = process.env) {
     const home = codexHome && codexHome.length > 0 ? codexHome : join(homedir(), ".codex");
     return join(home, "codex-lsp", "daemon");
 }
-export function daemonPaths(env = process.env, version = resolveDaemonVersion()) {
+export function daemonPaths(env = process.env, version = resolveDaemonVersionFromEnv(env) ?? resolveDaemonVersion()) {
     const dir = join(daemonBaseDir(env), `v${version}`);
     return {
         version,
@@ -36,6 +37,10 @@ export function daemonPaths(env = process.env, version = resolveDaemonVersion())
         pid: join(dir, "daemon.pid"),
         log: join(dir, "daemon.log"),
     };
+}
+export function resolveDaemonVersionFromEnv(env = process.env) {
+    const version = env[CODEX_LSP_DAEMON_VERSION_ENV]?.trim();
+    return version && version.length > 0 ? version : null;
 }
 function resolveSocketPath(dir, version) {
     const digest = createHash("sha256").update(dir).digest("hex").slice(0, 16);

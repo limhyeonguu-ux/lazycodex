@@ -1307,10 +1307,9 @@ function posixRuntimeWrapper(cliPath, codexHome, binDir, nodeCliPath) {
     "#!/bin/sh",
     `# ${RUNTIME_WRAPPER_MARKER}`,
     `export CODEX_HOME="\${CODEX_HOME:-${escapedCodexHome}}"`,
-    'export OMO_SPARKSHELL_APP_SERVER_SOCKET="${OMO_SPARKSHELL_APP_SERVER_SOCKET:-$CODEX_HOME/app-server-control/app-server-control.sock}"',
     'if [ "$1" = "ulw-loop" ] && [ -x "' + escapedUlwLoopBin + '" ]; then',
     "  shift",
-    '  exec "' + escapedUlwLoopBin + '" "$@"',
+    '  exec "' + escapedUlwLoopBin + '" ulw-loop "$@"',
     "fi",
     `if [ "\${OMO_RUNTIME:-}" = "node" ] && [ -f "${nodeCli}" ]; then`,
     `  exec node "${nodeCli}" "$@"`,
@@ -1349,11 +1348,10 @@ function windowsRuntimeWrapper(cliPath, codexHome, binDir, nodeCliPath) {
     "@echo off",
     `rem ${RUNTIME_WRAPPER_MARKER}`,
     `if not defined CODEX_HOME set "CODEX_HOME=${codexHome}"`,
-    'if not defined OMO_SPARKSHELL_APP_SERVER_SOCKET set "OMO_SPARKSHELL_APP_SERVER_SOCKET=%CODEX_HOME%\\app-server-control\\app-server-control.sock"',
     ...windowsNodeDiscoveryLines(),
     `if "%~1"=="ulw-loop" if exist "${ulwLoopBin}" (`,
     "  shift /1",
-    `  "${ulwLoopBin}" %*`,
+    `  "${ulwLoopBin}" ulw-loop %*`,
     "  exit /b %ERRORLEVEL%",
     ")",
     `if "%OMO_RUNTIME%"=="node" if defined OMO_NODE_BINARY if exist "${nodeCliPath}" (`,
@@ -2050,7 +2048,7 @@ function ensureMarketplaceBlock(config, marketplaceName, source) {
 }
 
 // ../src/install/codex-config-permissions.ts
-var AUTONOMOUS_FEATURES = ["multi_agent", "child_agents_md", "unified_exec", "goals"];
+var AUTONOMOUS_FEATURES = ["multi_agent", "unified_exec", "goals"];
 function ensureAutonomousPermissions(config) {
   let next = replaceOrInsertRootSetting(config, "approval_policy", JSON.stringify("never"));
   next = replaceOrInsertRootSetting(next, "sandbox_mode", JSON.stringify("danger-full-access"));
@@ -2470,7 +2468,6 @@ async function updateCodexConfig(input) {
   config = ensureFeatureEnabled(config, "plugins");
   config = ensureFeatureEnabled(config, "plugin_hooks");
   config = ensureFeatureEnabled(config, "multi_agent");
-  config = ensureFeatureEnabled(config, "child_agents_md");
   config = removeUnsupportedCodexMultiAgentModeConfig(config);
   config = ensureCodexReasoningConfig(config, await readCodexModelCatalog(input.repoRoot));
   config = ensureCodexMultiAgentV2Config(config);
@@ -2579,7 +2576,8 @@ async function trustedHookStatesForPlugin(input) {
       continue;
     states.push(...trustedHookStatesForHooksFile({
       keySource: `${input.pluginName}@${input.marketplaceName}:${hookPath}`,
-      hooks: parsed.hooks
+      hooks: parsed.hooks,
+      platform: input.platform ?? process.platform
     }));
   }
   return states;
@@ -2607,20 +2605,28 @@ function trustedHookStatesForHooksFile(input) {
           continue;
         if (handler.async === true)
           continue;
-        if (typeof handler.command !== "string" || handler.command.trim() === "")
+        const command = commandForPlatform(handler, input.platform);
+        if (command === undefined || command.trim() === "")
           continue;
         const key = `${input.keySource}:${eventLabel}:${groupIndex}:${handlerIndex}`;
-        states.push({ key, trustedHash: commandHookHash(eventLabel, group.matcher, handler) });
+        states.push({ key, trustedHash: commandHookHash(eventLabel, group.matcher, handler, command) });
       }
     }
   }
   return states;
 }
-function commandHookHash(eventName, matcher, handler) {
+function commandForPlatform(handler, platform) {
+  if (typeof handler.command !== "string")
+    return;
+  if (platform === "win32" && typeof handler.commandWindows === "string")
+    return handler.commandWindows;
+  return handler.command;
+}
+function commandHookHash(eventName, matcher, handler, command) {
   const timeout = Math.max(Number(handler.timeout ?? 600), 1);
   const normalizedHandler = {
     type: "command",
-    command: handler.command,
+    command,
     timeout,
     async: false
   };
@@ -2938,7 +2944,7 @@ async function linkRuntimeWrapperStep(options, binDir, degraded) {
       reason: "marketplace payload has no dist/cli"
     });
     await appendBootstrapLog(options.pluginData, options.now ?? Date.now(), "omo-cli-degraded", {
-      warning: `Warning: skipped the omo runtime wrapper because ${cliPath} is missing; omo sparkshell/ulw-loop commands will be unavailable until a package shipping dist/cli is installed`
+      warning: `Warning: skipped the omo runtime wrapper because ${cliPath} is missing; omo ulw-loop commands will be unavailable until a package shipping dist/cli is installed`
     });
   } catch (error) {
     degraded.push({

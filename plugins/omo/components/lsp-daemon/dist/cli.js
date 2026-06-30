@@ -3405,6 +3405,7 @@ function unlinkQuietly(path) {
 var PROBE_TIMEOUT_MS = 500;
 var DEFAULT_READY_TIMEOUT_MS = 5000;
 var DEFAULT_POLL_INTERVAL_MS = 100;
+var CODEX_LSP_DAEMON_CLI_ENV = "CODEX_LSP_DAEMON_CLI";
 
 class DaemonUnreachableError extends Error {
   constructor(socketPath) {
@@ -3465,7 +3466,7 @@ function spawnDaemonProcess(paths) {
   mkdirSync3(dirname5(paths.log), { recursive: true });
   const logFd = openSync2(paths.log, "a");
   try {
-    const cliPath = fileURLToPath3(new URL("./cli.js", import.meta.url));
+    const cliPath = resolveDaemonCliPath();
     const child = spawn2(execPath, [cliPath, "daemon"], {
       detached: true,
       stdio: ["ignore", logFd, logFd]
@@ -3474,6 +3475,12 @@ function spawnDaemonProcess(paths) {
   } finally {
     closeSync2(logFd);
   }
+}
+function resolveDaemonCliPath(env = process.env) {
+  const override = env[CODEX_LSP_DAEMON_CLI_ENV]?.trim();
+  if (override)
+    return override;
+  return fileURLToPath3(new URL("./cli.js", import.meta.url));
 }
 function defaultEnsureDaemonDeps() {
   return {
@@ -3485,8 +3492,7 @@ function defaultEnsureDaemonDeps() {
     },
     spawnDaemon: (paths) => spawnDaemonProcess(paths),
     sleep: (ms) => new Promise((resolve6) => {
-      const timer = setTimeout(resolve6, ms);
-      timer.unref?.();
+      setTimeout(resolve6, ms);
     }),
     now: () => Date.now()
   };
@@ -3499,6 +3505,7 @@ import { homedir as homedir3, tmpdir } from "node:os";
 import { join as join8 } from "node:path";
 var requireFromHere = createRequire(import.meta.url);
 var MAX_SOCKET_PATH_LENGTH = 100;
+var CODEX_LSP_DAEMON_VERSION_ENV = "CODEX_LSP_DAEMON_VERSION";
 function resolveDaemonVersion(requireFn = requireFromHere) {
   for (const candidate of ["./package.json", "../package.json"]) {
     try {
@@ -3520,7 +3527,7 @@ function daemonBaseDir(env = process.env) {
   const home = codexHome && codexHome.length > 0 ? codexHome : join8(homedir3(), ".codex");
   return join8(home, "codex-lsp", "daemon");
 }
-function daemonPaths(env = process.env, version = resolveDaemonVersion()) {
+function daemonPaths(env = process.env, version = resolveDaemonVersionFromEnv(env) ?? resolveDaemonVersion()) {
   const dir = join8(daemonBaseDir(env), `v${version}`);
   return {
     version,
@@ -3530,6 +3537,10 @@ function daemonPaths(env = process.env, version = resolveDaemonVersion()) {
     pid: join8(dir, "daemon.pid"),
     log: join8(dir, "daemon.log")
   };
+}
+function resolveDaemonVersionFromEnv(env = process.env) {
+  const version = env[CODEX_LSP_DAEMON_VERSION_ENV]?.trim();
+  return version && version.length > 0 ? version : null;
 }
 function resolveSocketPath(dir, version) {
   const digest = createHash("sha256").update(dir).digest("hex").slice(0, 16);

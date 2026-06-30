@@ -18,4 +18,5 @@ export interface EnsureDaemonOptions {
 export declare function ensureDaemonRunning(paths: DaemonPaths, deps?: EnsureDaemonDeps, options?: EnsureDaemonOptions): Promise<void>;
 export declare function probeSocket(socketPath: string, timeoutMs?: number): Promise<boolean>;
 export declare function spawnDaemonProcess(paths: DaemonPaths): void;
+export declare function resolveDaemonCliPath(env?: NodeJS.ProcessEnv): string;
 export declare function defaultEnsureDaemonDeps(): EnsureDaemonDeps;

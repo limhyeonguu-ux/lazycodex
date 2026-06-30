@@ -76,6 +76,8 @@ export interface CodexConfigSummary {
     readonly pluginEnabled: boolean;
     readonly pluginsFeatureEnabled: boolean;
     readonly pluginHooksFeatureEnabled: boolean;
+    readonly companionPluginEnabled: boolean;
+    readonly companionLifecycleHookStateEvents: readonly string[];
 }
 export interface CodexDoctorSummary {
     readonly codexPath: string | null;

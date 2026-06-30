@@ -381,6 +381,8 @@ async function runMcpStdioServer(input, output, options = {}) {
     output,
     handler: handleGitBashMcpRequest,
     handlerOptions: options,
+    idleTimeoutMs: 0,
+    log: options.lifecycleLog,
     parseErrorResponse: () => errorResponse(null, -32601, "Method not found")
   });
 }

@@ -2,7 +2,6 @@
 
 // components/lsp/src/cli.ts
 import { spawn as spawn3 } from "node:child_process";
-import { createRequire as createRequire2 } from "node:module";
 import { argv, execPath as execPath2, stderr } from "node:process";
 
 // components/lsp/src/codex-hook-cli.ts
@@ -1481,6 +1480,7 @@ function unlinkQuietly(path) {
 var PROBE_TIMEOUT_MS = 500;
 var DEFAULT_READY_TIMEOUT_MS = 5000;
 var DEFAULT_POLL_INTERVAL_MS = 100;
+var CODEX_LSP_DAEMON_CLI_ENV = "CODEX_LSP_DAEMON_CLI";
 
 class DaemonUnreachableError extends Error {
   constructor(socketPath) {
@@ -1541,7 +1541,7 @@ function spawnDaemonProcess(paths) {
   mkdirSync2(dirname2(paths.log), { recursive: true });
   const logFd = openSync2(paths.log, "a");
   try {
-    const cliPath = fileURLToPath(new URL("./cli.js", import.meta.url));
+    const cliPath = resolveDaemonCliPath();
     const child = spawn2(execPath, [cliPath, "daemon"], {
       detached: true,
       stdio: ["ignore", logFd, logFd]
@@ -1550,6 +1550,12 @@ function spawnDaemonProcess(paths) {
   } finally {
     closeSync2(logFd);
   }
+}
+function resolveDaemonCliPath(env = process.env) {
+  const override = env[CODEX_LSP_DAEMON_CLI_ENV]?.trim();
+  if (override)
+    return override;
+  return fileURLToPath(new URL("./cli.js", import.meta.url));
 }
 function defaultEnsureDaemonDeps() {
   return {
@@ -1561,14 +1567,14 @@ function defaultEnsureDaemonDeps() {
     },
     spawnDaemon: (paths) => spawnDaemonProcess(paths),
     sleep: (ms) => new Promise((resolve22) => {
-      const timer = setTimeout(resolve22, ms);
-      timer.unref?.();
+      setTimeout(resolve22, ms);
     }),
     now: () => Date.now()
   };
 }
 var requireFromHere = createRequire(import.meta.url);
 var MAX_SOCKET_PATH_LENGTH = 100;
+var CODEX_LSP_DAEMON_VERSION_ENV = "CODEX_LSP_DAEMON_VERSION";
 function resolveDaemonVersion(requireFn = requireFromHere) {
   for (const candidate of ["./package.json", "../package.json"]) {
     try {
@@ -1590,7 +1596,7 @@ function daemonBaseDir(env = process.env) {
   const home = codexHome && codexHome.length > 0 ? codexHome : join2(homedir(), ".codex");
   return join2(home, "codex-lsp", "daemon");
 }
-function daemonPaths(env = process.env, version = resolveDaemonVersion()) {
+function daemonPaths(env = process.env, version = resolveDaemonVersionFromEnv(env) ?? resolveDaemonVersion()) {
   const dir = join2(daemonBaseDir(env), `v${version}`);
   return {
     version,
@@ -1600,6 +1606,10 @@ function daemonPaths(env = process.env, version = resolveDaemonVersion()) {
     pid: join2(dir, "daemon.pid"),
     log: join2(dir, "daemon.log")
   };
+}
+function resolveDaemonVersionFromEnv(env = process.env) {
+  const version = env[CODEX_LSP_DAEMON_VERSION_ENV]?.trim();
+  return version && version.length > 0 ? version : null;
 }
 function resolveSocketPath(dir, version) {
   const digest = createHash("sha256").update(dir).digest("hex").slice(0, 16);
@@ -3322,12 +3332,68 @@ function errorText(error) {
 }
 
 // components/lsp/src/codex-hook.ts
-import { readFileSync as readFileSync8 } from "node:fs";
+import { readFileSync as readFileSync9 } from "node:fs";
+
+// components/lsp/src/daemon-cli-path.ts
+import { existsSync as existsSync9, readFileSync as readFileSync6 } from "node:fs";
+import { createRequire as createRequire2 } from "node:module";
+import { dirname as dirname6, join as join9 } from "node:path";
+import { fileURLToPath as fileURLToPath4 } from "node:url";
+var requireFromHere2 = createRequire2(import.meta.url);
+var PACKAGE_LSP_DAEMON_CLI = "@code-yeongyu/lsp-daemon/dist/cli.js";
+var CODEX_LSP_DAEMON_CLI_ENV2 = "CODEX_LSP_DAEMON_CLI";
+var CODEX_LSP_DAEMON_VERSION_ENV2 = "CODEX_LSP_DAEMON_VERSION";
+function ensureLspDaemonCliEnv(env = process.env) {
+  const configuredCli = env[CODEX_LSP_DAEMON_CLI_ENV2]?.trim();
+  const resolution = configuredCli ? resolveConfiguredLspDaemonCli(configuredCli) : resolveLspDaemonCli();
+  if (!configuredCli)
+    env[CODEX_LSP_DAEMON_CLI_ENV2] = resolution.cliPath;
+  if (!env[CODEX_LSP_DAEMON_VERSION_ENV2]?.trim() && resolution.version !== null) {
+    env[CODEX_LSP_DAEMON_VERSION_ENV2] = resolution.version;
+  }
+}
+function resolveLspDaemonCliPath() {
+  return resolveLspDaemonCli().cliPath;
+}
+function resolveLspDaemonCli() {
+  const packageCli = resolvePackageLspDaemonCliPath();
+  if (packageCli !== null)
+    return resolveConfiguredLspDaemonCli(packageCli);
+  const bundledCli = fileURLToPath4(new URL("../../lsp-daemon/dist/cli.js", import.meta.url));
+  if (existsSync9(bundledCli))
+    return resolveConfiguredLspDaemonCli(bundledCli);
+  return resolveConfiguredLspDaemonCli(bundledCli);
+}
+function resolvePackageLspDaemonCliPath() {
+  try {
+    return requireFromHere2.resolve(PACKAGE_LSP_DAEMON_CLI);
+  } catch {
+    return null;
+  }
+}
+function resolveConfiguredLspDaemonCli(cliPath) {
+  return {
+    cliPath,
+    version: readDaemonPackageVersion(cliPath)
+  };
+}
+function readDaemonPackageVersion(cliPath) {
+  try {
+    const parsed = JSON.parse(readFileSync6(join9(dirname6(cliPath), "package.json"), "utf8"));
+    if (isRecord4(parsed) && typeof parsed["version"] === "string" && parsed["version"].length > 0) {
+      return parsed["version"];
+    }
+  } catch {}
+  return null;
+}
+function isRecord4(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 // components/lsp/src/lsp-session-state.ts
-import { mkdirSync as mkdirSync4, readFileSync as readFileSync6, writeFileSync as writeFileSync3 } from "node:fs";
+import { mkdirSync as mkdirSync4, readFileSync as readFileSync8, writeFileSync as writeFileSync3 } from "node:fs";
 import { homedir as homedir4 } from "node:os";
-import { dirname as dirname6, extname as extname2, join as join9 } from "node:path";
+import { dirname as dirname8, extname as extname2, join as join11 } from "node:path";
 function sessionIdFrom(input) {
   return typeof input.session_id === "string" && input.session_id.length > 0 ? input.session_id : undefined;
 }
@@ -3374,23 +3440,23 @@ function isLspDaemonUnreachableDiagnostics(diagnostics) {
   return diagnostics.includes("LSP daemon unreachable");
 }
 function sessionStatePath(sessionId) {
-  const root = process.env["PLUGIN_DATA"] ?? join9(homedir4(), ".codex", "codex-lsp");
-  return join9(root, "sessions", `${safePathSegment(sessionId)}.json`);
+  const root = process.env["PLUGIN_DATA"] ?? join11(homedir4(), ".codex", "codex-lsp");
+  return join11(root, "sessions", `${safePathSegment(sessionId)}.json`);
 }
 function readSessionState(path) {
   try {
-    const parsed = JSON.parse(readFileSync6(path, "utf8"));
+    const parsed = JSON.parse(readFileSync8(path, "utf8"));
     if (isLspSessionState(parsed))
       return parsed;
     return emptyState();
   } catch (error) {
-    if (error instanceof SyntaxError || isRecord4(error) && error["code"] === "ENOENT")
+    if (error instanceof SyntaxError || isRecord7(error) && error["code"] === "ENOENT")
       return emptyState();
     throw error;
   }
 }
 function writeSessionState(path, state) {
-  mkdirSync4(dirname6(path), { recursive: true });
+  mkdirSync4(dirname8(path), { recursive: true });
   writeFileSync3(path, `${JSON.stringify(state)}
 `);
 }
@@ -3405,12 +3471,12 @@ function safePathSegment(value) {
   return value.replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120) || "unknown-session";
 }
 function isLspSessionState(value) {
-  if (!isRecord4(value) || !Array.isArray(value["unavailableExtensions"]))
+  if (!isRecord7(value) || !Array.isArray(value["unavailableExtensions"]))
     return false;
   const postCompactProbePending = value["postCompactProbePending"];
   return value["unavailableExtensions"].every((item) => typeof item === "string") && (postCompactProbePending === undefined || typeof postCompactProbePending === "boolean");
 }
-function isRecord4(value) {
+function isRecord7(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
@@ -3421,7 +3487,7 @@ function extractMutatedFilePaths(input) {
     return [];
   if (isFailedToolResponse(input.tool_response))
     return [];
-  const toolInput = isRecord7(input.tool_input) ? input.tool_input : {};
+  const toolInput = isRecord9(input.tool_input) ? input.tool_input : {};
   const paths = new Set;
   addStringValue(paths, toolInput["path"]);
   addStringValue(paths, toolInput["filePath"]);
@@ -3440,7 +3506,7 @@ function isMutationTool(value) {
   return MUTATION_TOOL_NAMES.has(value.toLowerCase());
 }
 function isFailedToolResponse(value) {
-  if (!isRecord7(value))
+  if (!isRecord9(value))
     return false;
   return value["isError"] === true || value["is_error"] === true || value["error"] === true || value["status"] === "error";
 }
@@ -3483,7 +3549,7 @@ function addPatchFiles(paths, value) {
   if (!Array.isArray(value))
     return;
   for (const item of value) {
-    if (!isRecord7(item))
+    if (!isRecord9(item))
       continue;
     addStringValue(paths, item["path"]);
     addStringValue(paths, item["filePath"]);
@@ -3492,7 +3558,7 @@ function addPatchFiles(paths, value) {
     addStringValue(paths, item["move_path"]);
   }
 }
-function isRecord7(value) {
+function isRecord9(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
@@ -3514,6 +3580,7 @@ var CONTEXT_PRESSURE_MARKERS = [
   "long threads and multiple compactions"
 ];
 async function runLspDiagnosticsText(filePath) {
+  ensureLspDaemonCliEnv();
   const result = await callDiagnosticsViaDaemon(filePath, { context: currentRequestContext() });
   return result.content.map((block) => block.text).join(`
 `);
@@ -3650,7 +3717,7 @@ function isContextPressureTranscript(transcriptPath) {
   if (typeof transcriptPath !== "string")
     return false;
   try {
-    return hasContextPressureMarker(readFileSync8(transcriptPath, "utf8"));
+    return hasContextPressureMarker(readFileSync9(transcriptPath, "utf8"));
   } catch (error) {
     if (error instanceof Error)
       return false;
@@ -3675,7 +3742,7 @@ function limitHookText(text2, maxChars) {
 function isCleanDiagnostics(diagnostics) {
   return diagnostics.length === 0 || diagnostics === CLEAN_DIAGNOSTICS_TEXT || diagnostics.startsWith(UNSUPPORTED_EXTENSION_TEXT);
 }
-function isRecord9(value) {
+function isRecord10(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
@@ -3692,7 +3759,7 @@ async function runHookCli(runHook, stdin) {
     if (!raw.trim())
       return;
     const parsed = JSON.parse(raw);
-    const input = isRecord9(parsed) ? parsed : {};
+    const input = isRecord10(parsed) ? parsed : {};
     const output = await runHook(input);
     if (output)
       process.stdout.write(output);
@@ -3714,8 +3781,6 @@ async function readStdin(stdin) {
 }
 
 // components/lsp/src/cli.ts
-var require2 = createRequire2(import.meta.url);
-var PACKAGE_LSP_MCP_CLI = "@code-yeongyu/lsp-daemon/dist/cli.js";
 async function main() {
   const [command = "mcp", subcommand = ""] = argv.slice(2);
   if (command === "hook" && subcommand === "post-tool-use") {
@@ -3740,7 +3805,7 @@ main().catch((error) => {
   process.exitCode = 1;
 });
 async function runPackageLspMcpCli() {
-  const cliPath = require2.resolve(PACKAGE_LSP_MCP_CLI);
+  const cliPath = resolveLspDaemonCliPath();
   const child = spawn3(execPath2, [cliPath, "mcp"], { stdio: "inherit" });
   await new Promise((resolve6, reject) => {
     child.once("error", reject);

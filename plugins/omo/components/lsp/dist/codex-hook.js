@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { callDiagnosticsViaDaemon, currentRequestContext } from "@code-yeongyu/lsp-daemon";
+import { ensureLspDaemonCliEnv } from "./daemon-cli-path.js";
 import { isLspDaemonUnreachableDiagnostics, isUnavailableLspDiagnostics, markLspSessionCompacted, recordLspDiagnosticsObservations, sessionIdFrom, shouldSkipUnavailableLspDiagnostics, } from "./lsp-session-state.js";
 import { extractMutatedFilePaths } from "./mutated-file-paths.js";
 export { extractMutatedFilePaths } from "./mutated-file-paths.js";
@@ -20,6 +21,7 @@ const CONTEXT_PRESSURE_MARKERS = [
     "long threads and multiple compactions",
 ];
 export async function runLspDiagnosticsText(filePath) {
+    ensureLspDaemonCliEnv();
     const result = await callDiagnosticsViaDaemon(filePath, { context: currentRequestContext() });
     return result.content.map((block) => block.text).join("\n");
 }
